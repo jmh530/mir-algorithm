@@ -132,6 +132,22 @@ unittest
     static assert(kindOf!(Slice!(Universal, [1], int*)) == Universal);
 }
 
+/// Extracts packs from $(LREF Slice).
+template packsOf(T : Slice!(kind, packs, Iterator), 
+				 SliceKind kind, size_t[] packs, Iterator)
+{
+	enum size_t[] packsOf = packs[];
+}
+													
+///
+@safe pure nothrow @nogc
+unittest
+{
+    alias S = Slice!(Universal, [2, 3], int*);
+
+    static assert(packsOf!S == [2, 3]);
+}
+
 private template SkipDimension(size_t dimension, size_t index)
 {
     static if (index < dimension)
