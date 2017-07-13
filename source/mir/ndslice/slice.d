@@ -2106,7 +2106,7 @@ struct Slice(SliceKind kind, size_t[] packs, Iterator)
         {
             import mir.ndslice.topology : unpack;
             auto sl = this[slices].unpack;
-            static assert(isSlice!(typeof(sl))[0] == concatenation.N);
+            static assert(packsOf!(typeof(sl))[0] == concatenation.N);
             sl.opIndexOpAssignImplConcatenation!""(concatenation);
         }
 
@@ -2425,7 +2425,7 @@ struct Slice(SliceKind kind, size_t[] packs, Iterator)
         {
             import mir.ndslice.topology : unpack;
             auto sl = this[slices].unpack;
-            static assert(isSlice!(typeof(sl))[0] == concatenation.N);
+            static assert(packsOf!(typeof(sl))[0] == concatenation.N);
             sl.opIndexOpAssignImplConcatenation!op(concatenation);
         }
 
