@@ -16,11 +16,12 @@ $(T2 SliceKind, Kind of $(LREF Slice) enumeration.)
 $(T2 Universal, Alias for $(LREF .SliceKind.universal).)
 $(T2 Canonical, Alias for $(LREF .SliceKind.canonical).)
 $(T2 Contiguous, Alias for $(LREF .SliceKind.contiguous).)
+$(T2 isSlice, Test if type is a Slice.)
 $(T2 sliced, Creates a slice on top of an iterator, a pointer, or an array's pointer.)
 $(T2 slicedField, Creates a slice on top of a field, a random access range, or an array.)
 $(T2 slicedNdField, Creates a slice on top of an ndField.)
 $(T2 kindOf, Extracts $(LREF SliceKind).)
-$(T2 isSlice, Extracts dimension packs from a type. Extracts `null` if the template argument is not a `Slice`.)
+$(T2 packsOf, Extracts dimension packs from a $(LREF Slice).)
 $(T2 DeepElementType, Extracts the element type of a $(LREF Slice).)
 $(T2 Structure, A tuple of lengths and strides.)
 )
@@ -47,13 +48,8 @@ import mir.utility;
 @fastmath:
 
 ///
-template isSlice(T)
-{
-    static if (is(T : Slice!(kind, packs, Iterator), SliceKind kind, size_t[] packs, Iterator))
-        enum size_t[] isSlice = packs[];
-    else
-        enum size_t[] isSlice = null;
-}
+enum bool isSlice(T) = is(T : Slice!(kind, packs, Iterator), 
+                          SliceKind kind, size_t[] packs, Iterator);
 
 ///
 @safe pure nothrow @nogc
@@ -64,9 +60,6 @@ unittest
 
     static assert(isSlice!S);
     static assert(!isSlice!A);
-
-    static assert(isSlice!S == [2, 3]);
-    static assert(isSlice!A == null);
 }
 
 /++
@@ -138,6 +131,22 @@ enum kindOf(T : Slice!(kind, packs, Iterator), SliceKind kind, size_t[] packs, I
 unittest
 {
     static assert(kindOf!(Slice!(Universal, [1], int*)) == Universal);
+}
+
+/// Extracts dimension packs from a $(LREF Slice).
+template packsOf(T : Slice!(kind, packs, Iterator), 
+				 SliceKind kind, size_t[] packs, Iterator)
+{
+	enum size_t[] packsOf = packs[];
+}
+													
+///
+@safe pure nothrow @nogc
+unittest
+{
+    alias S = Slice!(Universal, [2, 3], int*);
+
+    static assert(packsOf!S == [2, 3]);
 }
 
 private template SkipDimension(size_t dimension, size_t index)
@@ -2097,7 +2106,7 @@ struct Slice(SliceKind kind, size_t[] packs, Iterator)
         {
             import mir.ndslice.topology : unpack;
             auto sl = this[slices].unpack;
-            static assert(isSlice!(typeof(sl))[0] == concatenation.N);
+            static assert(packsOf!(typeof(sl))[0] == concatenation.N);
             sl.opIndexOpAssignImplConcatenation!""(concatenation);
         }
 
@@ -2416,7 +2425,7 @@ struct Slice(SliceKind kind, size_t[] packs, Iterator)
         {
             import mir.ndslice.topology : unpack;
             auto sl = this[slices].unpack;
-            static assert(isSlice!(typeof(sl))[0] == concatenation.N);
+            static assert(packsOf!(typeof(sl))[0] == concatenation.N);
             sl.opIndexOpAssignImplConcatenation!op(concatenation);
         }
 
