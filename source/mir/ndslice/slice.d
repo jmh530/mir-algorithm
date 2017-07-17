@@ -48,8 +48,13 @@ import mir.utility;
 @fastmath:
 
 ///
-enum bool isSlice(T) = is(T : Slice!(kind, packs, Iterator), 
-                          SliceKind kind, size_t[] packs, Iterator);
+template isSlice(T)
+{
+    static if (is(T : Slice!(kind, packs, Iterator), SliceKind kind, size_t[] packs, Iterator))
+        enum size_t[] isSlice = packs[];
+    else
+        enum size_t[] isSlice = null;
+}
 
 ///
 @safe pure nothrow @nogc
@@ -60,6 +65,9 @@ unittest
 
     static assert(isSlice!S);
     static assert(!isSlice!A);
+
+    static assert(isSlice!S == [2, 3]);
+    static assert(isSlice!A == null);
 }
 
 /++
