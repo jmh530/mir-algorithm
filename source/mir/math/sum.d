@@ -235,17 +235,6 @@ unittest
     assert(ma.avg == (1010 * 1009 / 2 - 10 * 9 / 2) / 1000.0);
 }
 
-/// Arbitrary sum
-version(mir_test)
-@safe pure nothrow
-unittest
-{
-    assert(sum(1, 2, 3, 4) == 10);
-    assert(sum!float(1, 2, 3, 4) == 10f);
-    assert(sum(1f, 2, 3, 4) == 10f);
-    assert(sum(1.0 + 2i, 2 + 3i, 3 + 4i, 4 + 5i) == (10 + 14i));
-}
-
 version(X86)
     version = X86_Any;
 version(X86_64)
@@ -1712,21 +1701,6 @@ template sum(F, Summation summation = Summation.appropriate)
             }
         }
     }
-
-    ///
-    F sum(scope const F[] r...)
-    {
-        static if (isComplex!F && summation == Summation.precise)
-        {
-            return sum(r, summationInitValue!F);
-        }
-        else
-        {
-            Summator!(F, ResolveSummationType!(summation, const(F)[], F)) sum;
-            sum.put(r);
-            return sum.sum;
-        }
-    }
 }
 
 ///ditto
@@ -1747,13 +1721,6 @@ template sum(Summation summation = Summation.appropriate)
     {
         import core.lifetime: move;
         return .sum!(F, ResolveSummationType!(summation, Range, F))(r.move, seed);
-    }
-
-    ///
-    sumType!T sum(T)(scope const T[] ar...)
-    {
-        alias F = typeof(return);
-        return .sum!(F, ResolveSummationType!(summation, F[], F))(ar);
     }
 }
 
@@ -1873,24 +1840,6 @@ unittest
     }
 }
 
-version(mir_test)
-unittest
-{
-    assert(sum(1) == 1);
-    assert(sum(1, 2, 3) == 6);
-    assert(sum(1.0, 2.0, 3.0) == 6);
-    assert(sum(1.0 + 1i, 2.0 + 2i, 3.0 + 3i) == (6 + 6i));
-}
-
-version(mir_test)
-unittest
-{
-    assert(sum!float(1) == 1f);
-    assert(sum!float(1, 2, 3) == 6f);
-    assert(sum!float(1.0, 2.0, 3.0) == 6f);
-    assert(sum!cfloat(1.0 + 1i, 2.0 + 2i, 3.0 + 3i) == (6f + 6i));
-}
-
 version(LDC)
 version(X86_Any)
 version(mir_test)
@@ -1986,15 +1935,10 @@ private T summationInitValue(T)()
 package template sumType(Range)
 {
     import mir.ndslice.slice: isSlice, DeepElementType;
-
-    static if (isIterable!Range) {
-        static if (isSlice!Range)
-            alias T = Unqual!(DeepElementType!(Range.This));
-        else
-            alias T = Unqual!(ForeachType!Range);
-    } else {
-        alias T = Unqual!Range;
-    }
+    static if (isSlice!Range)
+        alias T = Unqual!(DeepElementType!(Range.This));
+    else
+        alias T = Unqual!(ForeachType!Range);
     static if (__traits(compiles, {
         auto a = T.init + T.init;
         a += T.init;
