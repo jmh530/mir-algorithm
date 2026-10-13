@@ -49,14 +49,15 @@ if (isFloatingPoint!T)
 Computes the normal distribution cumulative distribution function (CDF).
 The normal (or Gaussian, or bell-shaped) distribution is
 defined as:
-normalDist(x) = 1/$(SQRT) &pi; $(INTEGRAL -$(INFINITY), x) exp( - $(POWER t, 2)/2) dt
+normalDist(x) = 1/$(SQRT)(2&pi;) $(INTEGRAL -$(INFINITY), x) exp( - $(POWER t, 2)/2) dt
     = 0.5 + 0.5 * erf(x/sqrt(2))
     = 0.5 * erfc(- x/sqrt(2))
-To maintain accuracy at high values of x, use
-normalCDF(x) = 1 - normalCDF(-x).
+To obtain a small upper-tail probability, evaluate $(D normalCDF(-x))
+directly instead of subtracting $(D normalCDF(x)) from one.
 Accuracy:
 Within a few bits of machine resolution over the entire
-range.
+range. Relative accuracy decreases for subnormal results; extreme tails
+also inherit the rounding error of the platform exponential function.
 References:
 $(LINK http://www.netlib.org/cephes/ldoubdoc.html),
 G. Marsaglia, "Evaluating the Normal Distribution",
