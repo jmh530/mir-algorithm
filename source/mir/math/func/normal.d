@@ -73,10 +73,12 @@ T normalCDF(T)(const T a)
     {
         T y = 0.5f * erfce(z);
         /* Multiply by exp(-x^2 / 2)  */
-        z = expx2(a, -1);
-        y = y * sqrt(z);
+        // Evaluate the half exponent directly. Taking sqrt(exp(-a*a))
+        // loses tails as soon as the full exponent underflows.
+        z = expx2!(T, true)(a, -1);
+        y = y * z;
         if (y != y)
-            y = 0;
+            y = a != a ? a : 0;
         if (x > 0)
             y = 1 - y;
         return y;
@@ -218,20 +220,22 @@ enum T MINLOG(T) = log(T.min_normal * T.epsilon); // log(smallest denormal);
  *   IEEE     -106.566, 106.566    10^5       1.6e-19     4.4e-20
  */
 package(mir)
-T expx2(T)(const T x_, int sign)
+T expx2(T, bool halfExponent = false)(const T x_, int sign)
 {
     /*
     Cephes Math Library Release 2.9:  June, 2000
     Copyright 2000 by Stephen L. Moshier
     */
-    const T M = 32_768.0;
-    const T MINV = 3.0517578125e-5L;
+    // For float normal tails, multiples of 1/16 have an exact square
+    // throughout the nonzero tail. The finer split suits double/real.
+    enum T M = halfExponent && T.mant_dig == 24 ? 16 : 32_768;
+    enum T MINV = 1 / M;
 
     T x = fabs(x_);
     if (sign < 0)
         x = -x;
 
-  /* Represent x as an exact multiple of M plus a residual.
+  /* Represent x as an exact multiple of 1/M plus a residual.
      M is a power of 2 chosen so that exp(m * m) does not overflow
      or underflow and so that |x - m| is small.  */
     T m = MINV * floor(M * x + 0.5f);
@@ -245,6 +249,12 @@ T expx2(T)(const T x_, int sign)
     {
         u = -u;
         u1 = -u1;
+    }
+
+    static if (halfExponent)
+    {
+        u *= T(0.5);
+        u1 *= T(0.5);
     }
 
     if (u + u1 > MAXLOG!T)
@@ -461,3 +471,42 @@ static immutable real[8] Q3 =
 -0x1.d19e6ec03a85e556p-17, -0x1.9ea2a7b4422f6502p-11, -0x1.c54b1e852f107162p-8,
 0x1.e05268dd3c07989ep-3, 0x1.239c6aff14afbf82p+1, 1.0
 ];
+
+// Independent mpmath references (100 decimal digits), including tails that
+// used to vanish when exp(-x*x) underflowed before taking its square root.
+version(mir_test)
+unittest
+{
+    import std.meta: AliasSeq;
+    static foreach (T; AliasSeq!(float, double, real))
+    {{
+        static if (T.mant_dig == 24)
+        {
+            enum T x = 12;
+            enum T expected = 1.776482112077678997696171001845557e-33L;
+        }
+        else static if (T.max_exp == 1024)
+        {
+            enum T x = 30;
+            enum T expected = 4.906713927148187059533809256580190e-198L;
+        }
+        else
+        {
+            enum T x = 150;
+            enum T expected = 4.091457980903002399032776796971440e-4889L;
+        }
+        // The platform exp implementation can lose O(epsilon*x*x) relative
+        // accuracy at the extreme extended-precision exponent.
+        static if (T.max_exp > 1024)
+            assert(fabs(normalCDF(-x) / expected - 1) <= 4 * T.epsilon*x*x);
+        else
+            assert(fabs(normalCDF(-x) / expected - 1) <= 16 * T.epsilon);
+        assert(normalCDF(T.nan) != normalCDF(T.nan));
+        assert(normalCDF(T.max) == 1);
+        assert(normalCDF(-T.max) == 0);
+    }}
+    enum double subnormal = 2.885428360068784308350970481566904e-316L;
+    assert(fabs(normalCDF(-38.0) - subnormal) <= 2 * double.min_normal * double.epsilon);
+    assert(fabs(normalCDF(-27.0) / 7.389481006885018257517944005216002e-161 - 1)
+        <= 8 * double.epsilon);
+}
