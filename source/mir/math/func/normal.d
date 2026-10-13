@@ -142,7 +142,10 @@ do
         y = y - 0.5L;
         y2 = y * y;
         x = y + y * (y2 * rationalPoly!(P0, Q0)(y2));
-        return x * double(SQRT2PI);
+        static if (T.mant_dig > double.mant_dig)
+            return x * T(SQRT2PI);
+        else
+            return x * double(SQRT2PI);
     }
 
     x = sqrt( -2 * log(y) );
@@ -571,4 +574,17 @@ unittest
         assert(fabs(normalPDF(z * tinyScale, T(0), tinyScale) / expected - 1)
             <= 16*T.epsilon*z*z);
     }}
+}
+
+version(mir_test)
+unittest
+{
+    // The central inverse polynomial must not narrow its final multiplier
+    // to double when the caller requested extended precision.
+    static if (real.mant_dig > 53)
+    {
+        enum real q = 0.6744897501960817432022270145413071854L;
+        assert(fabs(normalInvCDF(0.25L) + q) <= 16 * real.epsilon);
+        assert(fabs(normalInvCDF(0.75L) - q) <= 16 * real.epsilon);
+    }
 }
