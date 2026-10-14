@@ -81,6 +81,10 @@ def main():
         return target
 
     assets = clone(args.assets, "assets", ASSETS_REV)
+    # The asset repository stores this binary without executable permission.
+    # Its Dockerfile supplies that permission; reproduce it for native builds.
+    extractor = assets / "dtools_tests_extractor"
+    extractor.chmod(extractor.stat().st_mode | 0o111)
     source = clone(str(repo), "source")
     # Include current working-tree edits for local validation without modifying
     # the original checkout. Copy only tracked build inputs, not build products.
