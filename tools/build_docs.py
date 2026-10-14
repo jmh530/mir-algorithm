@@ -6,6 +6,7 @@ Usage: python3 tools/build_docs.py build/docs
 The output directory must not exist. HTML is written to OUTPUT/site; build
 inputs and logs are retained alongside it. This builds HTML only: it does not
 run library tests or the old template's extracted documentation tests.
+Use --tests-only to build and run the Meson D and C++ tests instead of HTML.
 """
 
 import argparse
@@ -40,6 +41,8 @@ def copy_build_inputs(repo, source):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--tests-only", action="store_true",
+                        help="Run Meson D and C++ tests without HTML or extracted examples")
     parser.add_argument("--assets", default="https://github.com/libmir/circle-dlang.git",
                         help="Asset repository URL or local clone; revision remains pinned")
     parser.add_argument("--mir-core", default="https://github.com/libmir/mir-core.git",
@@ -83,8 +86,9 @@ def main():
     assets = clone(args.assets, "assets", ASSETS_REV)
     # The asset repository stores this binary without executable permission.
     # Its Dockerfile supplies that permission; reproduce it for native builds.
-    extractor = assets / "dtools_tests_extractor"
-    extractor.chmod(extractor.stat().st_mode | 0o111)
+    if not args.tests_only:
+        extractor = assets / "dtools_tests_extractor"
+        extractor.chmod(extractor.stat().st_mode | 0o111)
     source = clone(str(repo), "source")
     # Include current working-tree edits for local validation without modifying
     # the original checkout. Copy only tracked build inputs, not build products.
@@ -94,15 +98,29 @@ def main():
          "--target", output / "python", "meson==0.61.1", "semver==2.13.0"], "prepare.log")
     env["PYTHONPATH"] = str(output / "python")
     env["PATH"] = os.pathsep.join((str(output / "python/bin"), str(assets), env["PATH"]))
-    for directory in ("docgen", "web"):
-        shutil.copytree(assets / directory, source / directory)
+    if not args.tests_only:
+        for directory in ("docgen", "web"):
+            shutil.copytree(assets / directory, source / directory)
     with (source / "meson.build").open("a", encoding="utf-8") as stream:
         stream.write((assets / "meson.build.1").read_text(encoding="utf-8"))
     shutil.copy2(assets / "meson_options.txt.1", source / "meson_options.txt")
-    # Configure the original template, but select only its HTML targets below.
+    # Disable extracted examples in test mode; HTML mode selects only HTML targets.
     run(["meson", "setup", "_build_dir_", "--default-library=static",
-         "-Dwith_test=false", "-Dwith_doc=true", "-Dcompany=libmir"], "configure.log", source)
+         "-Dwith_test=" + str(args.tests_only).lower(),
+         "-Dwith_doc=" + str(not args.tests_only).lower(),
+         "-Dcompany=libmir"], "configure.log", source)
     build = source / "_build_dir_"
+    if args.tests_only:
+        run(["ninja", "-C", build, "-j2"], "build.log", source)
+        run(["meson", "test", "-C", build, "--no-rebuild", "--print-errorlogs"],
+            "test.log", source)
+        results = [json.loads(line) for line in
+                   (build / "meson-logs/testlog.json").read_text().splitlines() if line.strip()]
+        expected = {"mir-algorithm-test", "mir-algorithm-cpp-test"}
+        if {r["name"] for r in results} != expected or any(r["result"] != "OK" for r in results):
+            raise RuntimeError("expected both Meson D and C++ tests to pass")
+        print("Meson D and C++ tests passed; HTML and extracted examples were not built.")
+        return
     targets = json.loads((build / "meson-info/intro-targets.json").read_text())
     html = [Path(t["filename"][0]).name for t in targets if t["name"].startswith("doc_target_")]
     if not html:

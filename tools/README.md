@@ -37,3 +37,19 @@ Some legacy cross-references, search-domain settings, and template links still
 need repair before deployment. A successful artifact build does not certify
 those links or the external online example runner. Hosting migration is a
 separate step.
+
+## Meson D and C++ tests
+
+The separate `Meson tests` workflow runs the library unit tests and C++
+interoperability example with LDC 1.36.0 and the same pinned dependencies.
+It preserves the Meson test versions, including `mir_secure_memory`, and
+the project's DIP1008 compiler option. Reproduce it on Linux with:
+
+```sh
+python3 tools/build_docs.py build/meson-tests --tests-only
+```
+
+This mode enables `with_test` and disables `with_doc`, so it builds neither
+HTML nor the extracted documentation examples. Both named D and C++ tests
+must pass. Logs are retained locally and uploaded as `meson-test-logs` in CI.
+CircleCI's extracted-example tests and release-tag publishing remain in place.
