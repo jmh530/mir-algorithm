@@ -8,6 +8,23 @@ from build_docs import copy_build_inputs, validate_test_results
 
 
 class TestResultsTest(unittest.TestCase):
+    def test_example_mode_requires_every_configured_test(self):
+        names = ["mir-algorithm-test", "mir-algorithm-cpp-test",
+                 "mir/parse documented unittest", "mir/date documented unittest"]
+        configured = [{"name": name} for name in names]
+        results = [{"name": name, "result": "OK"} for name in names]
+        validate_test_results(results, configured)
+        with self.assertRaisesRegex(RuntimeError, "match"):
+            validate_test_results(results[:-1], configured)
+        with self.assertRaisesRegex(RuntimeError, "match"):
+            validate_test_results(results + [{"name": "unexpected", "result": "OK"}], configured)
+
+    def test_example_mode_rejects_missing_examples(self):
+        names = ["mir-algorithm-test", "mir-algorithm-cpp-test"]
+        with self.assertRaisesRegex(RuntimeError, "no extracted"):
+            validate_test_results([{"name": name, "result": "OK"} for name in names],
+                                  [{"name": name} for name in names])
+
     def test_accepts_additional_passing_tests(self):
         validate_test_results([
             {"name": "mir-algorithm-test", "result": "OK"},
