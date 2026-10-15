@@ -606,6 +606,8 @@ enum serdeIgnoreDefault;
 ///
 version(mir_test) unittest
 {
+    import std.traits: hasUDA;
+
     struct S
     {
         @serdeIgnoreDefault
@@ -628,6 +630,7 @@ struct serdeProxy(T);
 version(mir_test) unittest
 {
     import mir.small_string;
+    import std.traits: hasUDA;
 
     struct S
     {

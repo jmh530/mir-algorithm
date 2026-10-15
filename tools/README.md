@@ -27,10 +27,9 @@ styles are reused. HTML is compiled with warnings treated as errors.
 
 This is an **HTML build check**, not an example-test check. It deliberately
 selects the HTML targets from the old Meson template. The template's separately
-extracted examples currently fail to compile in nine modules: bignum internal
-kernel, bignum low-level view, date, linear and spline interpolation, normal
-distribution functions, ndslice fuse, parse, and serde. Causes include missing
-imports, private helper references, and extraction of disabled tests. The
+extracted examples currently fail to compile in five modules: bignum internal
+kernel, bignum low-level view, date, ndslice fuse, and parse. Causes include
+module qualification, private helper references, and extraction of disabled tests. The
 existing compiler CI remains responsible for library tests.
 
 Some legacy cross-references, search-domain settings, and template links still
