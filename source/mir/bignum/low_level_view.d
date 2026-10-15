@@ -2098,7 +2098,7 @@ struct DecimalView(W)
 }
 
 version(none)
-///
+// Disabled legacy algoM regression; not a public documentation example.
 unittest
 {
     {
