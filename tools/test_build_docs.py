@@ -1,10 +1,36 @@
-"""Regression check for the working-tree snapshot used by documentation builds."""
+"""Regression checks for build snapshots and Meson test-result validation."""
 from pathlib import Path
 import subprocess
 import tempfile
 import unittest
 
-from build_docs import copy_build_inputs
+from build_docs import copy_build_inputs, validate_test_results
+
+
+class TestResultsTest(unittest.TestCase):
+    def test_accepts_additional_passing_tests(self):
+        validate_test_results([
+            {"name": "mir-algorithm-test", "result": "OK"},
+            {"name": "mir-algorithm-cpp-test", "result": "OK"},
+            {"name": "additional-test", "result": "OK"},
+        ])
+
+    def test_requires_both_essential_tests(self):
+        for names in ([], ["mir-algorithm-test"], ["mir-algorithm-cpp-test"],
+                      ["additional-test"]):
+            with self.subTest(names=names), self.assertRaisesRegex(RuntimeError, "both"):
+                validate_test_results([{"name": name, "result": "OK"} for name in names])
+
+    def test_rejects_unsuccessful_results_anywhere_in_suite(self):
+        names = ["mir-algorithm-test", "mir-algorithm-cpp-test", "additional-test"]
+        for unsuccessful in names:
+            for result in ("FAIL", "TIMEOUT", "SKIP"):
+                with self.subTest(name=unsuccessful, result=result):
+                    with self.assertRaisesRegex(RuntimeError, "all Meson tests"):
+                        validate_test_results([
+                            {"name": name, "result": result if name == unsuccessful else "OK"}
+                            for name in names
+                        ])
 
 
 class BuildInputsTest(unittest.TestCase):

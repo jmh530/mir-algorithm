@@ -30,6 +30,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --yes g++ ninja-build python3-pip
+      - name: Check build driver regressions
+        run: python3 tools/test_build_docs.py
       - name: Build and run Meson tests
         run: python3 tools/build_docs.py build/meson-tests --tests-only
       - name: Upload build and test diagnostics

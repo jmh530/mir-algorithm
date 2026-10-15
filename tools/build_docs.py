@@ -38,6 +38,15 @@ def copy_build_inputs(repo, source):
                 destination.unlink()
 
 
+def validate_test_results(results):
+    """Require the D and C++ tests and successful results for the entire suite."""
+    required = {"mir-algorithm-test", "mir-algorithm-cpp-test"}
+    if not required.issubset({r["name"] for r in results}):
+        raise RuntimeError("expected both Meson D and C++ tests to run")
+    if any(r["result"] != "OK" for r in results):
+        raise RuntimeError("expected all Meson tests to pass")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path)
@@ -116,9 +125,7 @@ def main():
             "test.log", source)
         results = [json.loads(line) for line in
                    (build / "meson-logs/testlog.json").read_text().splitlines() if line.strip()]
-        expected = {"mir-algorithm-test", "mir-algorithm-cpp-test"}
-        if {r["name"] for r in results} != expected or any(r["result"] != "OK" for r in results):
-            raise RuntimeError("expected both Meson D and C++ tests to pass")
+        validate_test_results(results)
         print("Meson D and C++ tests passed; HTML and extracted examples were not built.")
         return
     targets = json.loads((build / "meson-info/intro-targets.json").read_text())
