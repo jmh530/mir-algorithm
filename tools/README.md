@@ -55,6 +55,11 @@ determines the required results, without a fixed example count. The D and C++
 tests and at least one extracted-example suite must be configured, and every
 configured test must run successfully; skipped tests are rejected.
 
+The driver creates the pinned extractor's default `out` directory before
+starting parallel example extraction. Single-file results go to stdout, but
+the extractor still creates this directory and otherwise races on first use.
+All build modes retain two Ninja build jobs.
+
 Use `--tests-only` instead for a shorter local run containing only the D and
 C++ tests. Logs are retained locally and uploaded as `meson-test-logs` in CI.
 CircleCI's extracted-example tests and release-tag publishing remain in place.
