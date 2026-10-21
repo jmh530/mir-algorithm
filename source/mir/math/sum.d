@@ -1668,6 +1668,25 @@ public:
     }
 }
 
+// A seven-element source previously caused index underflow on the second merge.
+version(mir_test)
+@safe pure nothrow @nogc unittest
+{
+    foreach (T; AliasSeq!(float, double, real))
+    foreach (op; AliasSeq!("+", "-"))
+    {
+        Summator!(T, Summation.pairwise) source, total;
+        foreach (i; 0 .. 7)
+            source.put(1);
+
+        total.opOpAssign!op(source);
+        assert(total.sum == (op == "+" ? 7 : -7));
+        total.opOpAssign!op(source);
+        assert(total.sum == (op == "+" ? 14 : -14));
+        assert(source.sum == 7);
+    }
+}
+
 // Merging source partials must preserve the destination's binary-tree state.
 version(mir_test)
 @safe pure nothrow @nogc unittest
