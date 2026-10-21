@@ -1430,6 +1430,13 @@ public:
         else
         static if (summation == Summation.pairwise)
         {
+            // A single partial is read before put can modify it, so even
+            // a self-merge needs no snapshot.
+            if (rhs.index == 1)
+            {
+                put(rhs.partials[0]);
+                return;
+            }
             // Keep the source stable when insertion also modifies rhs.
             if (rhs.partials[] is partials[])
             {
@@ -1534,6 +1541,13 @@ public:
         else
         static if (summation == Summation.pairwise)
         {
+            // A single partial is read before put can modify it, so even
+            // a self-merge needs no snapshot.
+            if (rhs.index == 1)
+            {
+                put(-rhs.partials[0]);
+                return;
+            }
             // Keep the source stable when insertion also modifies rhs.
             if (rhs.partials[] is partials[])
             {
