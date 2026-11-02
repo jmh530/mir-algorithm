@@ -48,6 +48,23 @@ import std.traits;
 ///
 public import mir.primitives: DeepElementType;
 
+// DMD's x86 backend can retain stale index registers after compound multiplication.
+// https://github.com/dlang/dmd/issues/24145
+// Add an upper bound once a fixed compiler version can be distinguished by __VERSION__.
+private enum bool useDmdIndexingWorkaround = () {
+    version (DigitalMars)
+    {
+        static if (__VERSION__ >= 2113)
+        {
+            version (X86)
+                return true;
+            else version (X86_64)
+                return true;
+        }
+    }
+    return false;
+}();
+
 /++
 Checks if type T has asSlice property and its returns a slices.
 Aliases itself to a dimension count
@@ -790,7 +807,10 @@ package(mir):
                 ptrdiff_t stride = _indices[E] * ball;
                 foreach_reverse (i; Iota!E) //static
                 {
-                    ball *= _lengths[i + 1];
+                    static if (useDmdIndexingWorkaround)
+                        ball = _lengths[i + 1] * ball;
+                    else
+                        ball *= _lengths[i + 1];
                     assert(_indices[i] < _lengths[i], indexError!(DeepElement, i, N));
                     stride += ball * _indices[i];
                 }
@@ -4192,4 +4212,30 @@ unittest
     // Ensure staticMap working properly
     static assert(is(R.Labels[0] == staticMap!(LightImmutableOfLightConstOf, int*, long*)[0]));
     static assert(is(R.Labels[1] == staticMap!(LightImmutableOfLightConstOf, int*, long*)[1]));
+}
+
+// DMD 2.113.x can reuse a stale index after inlining contiguous indexing.
+// Keep the scoped owner and helper calls: they preserve the triggering code shape.
+version(mir_ndslice_test)
+unittest
+{
+    import mir.ndslice.allocation: mininitRcslice;
+    import mir.rc.array: RCI;
+    import mir.exception: enforce;
+
+    static size_t status(A)(A a) { return 0; }
+    static void consume(A)(A a) { enforce!"failure"(status(a) == 0); }
+
+    static Slice!(RCI!double, 2) makeMatrix()()
+    {
+        auto result = mininitRcslice!double(3, 3);
+        consume(result);
+        return result;
+    }
+
+    { auto previous = makeMatrix(); }
+    auto matrix = makeMatrix();
+    foreach (i; 0 .. 9)
+        matrix._iterator[i] = 1.0;
+    assert(matrix[0, 0] == 1 && matrix[1, 0] == 1 && matrix[1, 1] == 1);
 }
